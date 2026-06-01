@@ -269,6 +269,6 @@ async function saveMessage(phone, name, message, aiResponse, intent, lang) {
     await db.execute('INSERT INTO agent_logs (agent_id, conversation_id, action, details) VALUES (?,?,?,?)',
       ['sales_responder', convId, `Response: ${intent}`, `Language: ${lang}`]);
   } catch (err) {
-    console.error('Save error:', err.message);
+    console.error('Save error:', err.message); 
   }
 }
