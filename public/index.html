@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cornerstone Supreme AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #F8F8FA; color: #18181B; }
+    .sidebar { position: fixed; left: 0; top: 0; width: 260px; height: 100vh; background: white; border-right: 1px solid #E4E4E7; padding: 20px; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+    .logo h2 { font-size: 16px; color: #0055FF; }
+    .nav-item { display: block; padding: 10px 14px; border-radius: 8px; color: #71717A; text-decoration: none; font-size: 14px; margin-bottom: 4px; }
+    .nav-item:hover, .nav-item.active { background: #EBF0FF; color: #0055FF; }
+    .main { margin-left: 260px; padding: 30px; }
+    .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid #E4E4E7; }
+    .card h2 { font-size: 18px; margin-bottom: 16px; color: #18181B; }
+    .status-green { display: inline-flex; align-items: center; gap: 6px; background: #DCFCE7; color: #166534; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+    .status-dot { width: 8px; height: 8px; background: #22C55E; border-radius: 50%; }
+    .input-group { margin-bottom: 16px; }
+    .input-group label { display: block; font-size: 13px; font-weight: 500; color: #18181B; margin-bottom: 6px; }
+    .input-group input { width: 100%; padding: 10px 14px; border: 1px solid #E4E4E7; border-radius: 8px; font-size: 14px; font-family: monospace; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: #0055FF; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+    .btn:hover { background: #0044CC; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #E4E4E7; }
+    .stat-card h3 { font-size: 28px; color: #0055FF; margin-bottom: 4px; }
+    .stat-card p { font-size: 13px; color: #71717A; }
+    .success-msg { background: #DCFCE7; border: 1px solid #22C55E; color: #166534; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .success-msg.show { display: block; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #E4E4E7; font-size: 14px; }
+    th { color: #A1A1AA; font-weight: 500; font-size: 12px; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <div style="width:40px;height:40px;background:#0055FF;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:18px;">CS</div>
+      <h2>Cornerstone Supreme</h2>
+    </div>
+    <a href="#" class="nav-item active">Dashboard</a>
+    <a href="#" class="nav-item">Live Conversations</a>
+    <a href="#" class="nav-item">Students</a>
+    <a href="#" class="nav-item">Settings</a>
+  </div>
+
+  <div class="main">
+    <div class="stats">
+      <div class="stat-card"><h3 id="convCount">0</h3><p>Conversations</p></div>
+      <div class="stat-card"><h3 id="msgCount">0</h3><p>Messages Today</p></div>
+      <div class="stat-card"><h3>8</h3><p>Courses</p></div>
+      <div class="stat-card"><h3 style="color:#22C55E;">Active</h3><p>AI Status</p></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h2>WhatsApp Business API</h2>
+        <span class="status-green"><span class="status-dot"></span> Connected</span>
+      </div>
+      
+      <div id="successMsg" class="success-msg">Settings saved!</div>
+
+      <div class="input-group">
+        <label>360dialog API Key</label>
+        <input type="password" id="apiKey" placeholder="Paste your API key...">
+      </div>
+      
+      <div class="input-group">
+        <label>Phone Number ID</label>
+        <input type="text" id="phoneId" placeholder="e.g. 3946307052068577">
+      </div>
+      
+      <div class="input-group">
+        <label>Business Phone</label>
+        <input type="text" id="bizPhone" value="0718374853">
+      </div>
+      
+      <div class="input-group">
+        <label>Webhook Verify Token</label>
+        <input type="text" id="webhookToken" value="cornerstone2024">
+      </div>
+      
+      <button class="btn" onclick="saveSettings()">Save Settings</button>
+    </div>
+
+    <div class="card">
+      <h2>Webhook URL (copy this to 360dialog)</h2>
+      <div class="input-group" style="margin-top:12px;">
+        <input type="text" id="webhookUrl" value="YOUR_RENDER_URL/api/webhook/whatsapp" readonly onclick="this.select()">
+      </div>
+      <p style="font-size:13px;color:#71717A;margin-top:8px;">After deploying, copy this URL to your 360dialog Hub Webhook settings</p>
+    </div>
+
+    <div class="card">
+      <h2>Recent Conversations</h2>
+      <table style="margin-top:16px;">
+        <thead>
+          <tr><th>Phone</th><th>Last Message</th><th>Status</th><th>Time</th></tr>
+        </thead>
+        <tbody id="convTable">
+          <tr><td colspan="4" style="color:#A1A1AA;">No conversations yet. Send a WhatsApp to 0718374853!</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function saveSettings() {
+      const settings = {
+        apiKey: document.getElementById('apiKey').value,
+        phoneId: document.getElementById('phoneId').value,
+        bizPhone: document.getElementById('bizPhone').value,
+        webhookToken: document.getElementById('webhookToken').value
+      };
+      localStorage.setItem('cs_settings', JSON.stringify(settings));
+      document.getElementById('successMsg').classList.add('show');
+      setTimeout(() => document.getElementById('successMsg').classList.remove('show'), 3000);
+    }
+    
+    const saved = localStorage.getItem('cs_settings');
+    if (saved) {
+      const s = JSON.parse(saved);
+      document.getElementById('apiKey').value = s.apiKey || '';
+      document.getElementById('phoneId').value = s.phoneId || '';
+      document.getElementById('bizPhone').value = s.bizPhone || '0718374853';
+      document.getElementById('webhookToken').value = s.webhookToken || 'cornerstone2024';
+    }
+    
+    document.getElementById('webhookUrl').value = window.location.origin + '/api/webhook/whatsapp';
+    
+    async function loadConversations() {
+      try {
+        const res = await fetch('/api/conversations');
+        const convs = await res.json();
+        document.getElementById('convCount').textContent = convs.length;
+        if (convs.length > 0) {
+          const html = convs.slice(0, 10).map(c => `
+            <tr>
+              <td>${c.student_phone}</td>
+              <td>${(c.last_message || '').substring(0, 50)}</td>
+              <td><span class="status-green">${c.status}</span></td>
+              <td>${new Date(c.created_at).toLocaleString()}</td>
+            </tr>
+          `).join('');
+          document.getElementById('convTable').innerHTML = html;
+        }
+      } catch(e) {}
+    }
+    loadConversations();
+    setInterval(loadConversations, 10000);
+  </script>
+</body>
+</html>
