@@ -63,7 +63,7 @@ async function initDatabase() {
         student_name VARCHAR(255) DEFAULT 'Student',
         student_phone VARCHAR(50) NOT NULL,
         language VARCHAR(20) DEFAULT 'en',
-        status ENUM('active','resolved','enrolled','follow_up') DEFAULT 'active',
+        status ENUM('active','resolved','enrolled','follow_up') DEFAULT 'active', 
         intent VARCHAR(100),
         agent_used VARCHAR(100),
         ai_handling BOOLEAN DEFAULT true,
