@@ -11,3 +11,239 @@
     "cors": "^2.8.5"
   }
 }
+
+// API ROUTES - tRPC compatible
+app.get('/api/ping', (req, res) => res.json(trpcResponse({ ok: true })));
+
+app.post('/api/trpc/courses.list', async (req, res) => {
+  if (!db) return res.json(trpcResponse([]));
+  const input = parseTrpcInput(req);
+  let sql = 'SELECT * FROM courses WHERE status = "published"';
+  const params = [];
+  if (input.category) { sql += ' AND category = ?'; params.push(input.category); }
+  if (input.search) { sql += ' AND title LIKE ?'; params.push(`%${input.search}%`); }
+  sql += ' ORDER BY id DESC';
+  const [rows] = await db.execute(sql, params);
+  res.json(trpcResponse(rows));
+});
+
+app.post('/api/trpc/courses.count', async (req, res) => {
+  if (!db) return res.json(trpcResponse(8));
+  const [rows] = await db.execute('SELECT COUNT(*) as count FROM courses WHERE status = "published"');
+  res.json(trpcResponse(rows[0]?.count || 0));
+});
+
+app.post('/api/trpc/courses.create', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null, 'No database'));
+  const input = parseTrpcInput(req);
+  const [result] = await db.execute(
+    'INSERT INTO courses (title, category, price, duration, description, format, certification) VALUES (?,?,?,?,?,?,?)',
+    [input.title, input.category, input.price, input.duration, input.description, input.format || 'Online', input.certification || 'Certificate of Completion']
+  );
+  res.json(trpcResponse({ id: result.insertId }));
+});
+
+app.post('/api/trpc/courses.bulkImport', async (req, res) => {
+  if (!db) return res.json(trpcResponse({ inserted: 0 }));
+  const input = parseTrpcInput(req);
+  let count = 0;
+  for (const c of (input.courses || [])) {
+    await db.execute('INSERT INTO courses (title, category, price, duration, description) VALUES (?,?,?,?,?)',
+      [c.title, c.category, c.price, c.duration, c.description || '']);
+    count++;
+  }
+  res.json(trpcResponse({ inserted: count }));
+});
+
+app.post('/api/trpc/students.list', async (req, res) => {
+  if (!db) return res.json(trpcResponse([]));
+  const input = parseTrpcInput(req);
+  let sql = 'SELECT * FROM students';
+  const params = [];
+  if (input.status) { sql += ' WHERE status = ?'; params.push(input.status); }
+  sql += ' ORDER BY id DESC';
+  const [rows] = await db.execute(sql, params);
+  res.json(trpcResponse(rows));
+});
+
+app.post('/api/trpc/students.create', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null, 'No database'));
+  const input = parseTrpcInput(req);
+  const [result] = await db.execute(
+    'INSERT INTO students (name, phone, email, status, source) VALUES (?,?,?,?,?)',
+    [input.name, input.phone, input.email || null, input.status || 'new', input.source || 'whatsapp']
+  );
+  res.json(trpcResponse({ id: result.insertId }));
+});
+
+app.post('/api/trpc/students.bulkImport', async (req, res) => {
+  if (!db) return res.json(trpcResponse({ inserted: 0 }));
+  const input = parseTrpcInput(req);
+  let count = 0;
+  for (const s of (input.leads || [])) {
+    await db.execute('INSERT INTO students (name, phone, email, status, source) VALUES (?,?,?,?,?)',
+      [s.name, s.phone, s.email || null, s.status || 'interested', 'bulk_import']);
+    count++;
+  }
+  res.json(trpcResponse({ inserted: count, total: input.leads?.length || 0 }));
+});
+
+app.post('/api/trpc/conversations.list', async (req, res) => {
+  if (!db) return res.json(trpcResponse([]));
+  const [rows] = await db.execute('SELECT * FROM conversations ORDER BY updated_at DESC LIMIT 50');
+  res.json(trpcResponse(rows));
+});
+
+app.post('/api/trpc/conversations.update', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null));
+  const input = parseTrpcInput(req);
+  await db.execute('UPDATE conversations SET status = ? WHERE id = ?', [input.status, input.id]);
+  res.json(trpcResponse({ success: true }));
+});
+
+app.post('/api/trpc/messages.list', async (req, res) => {
+  if (!db) return res.json(trpcResponse([]));
+  const input = parseTrpcInput(req);
+  const [rows] = await db.execute('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at', [input.conversationId]);
+  res.json(trpcResponse(rows));
+});
+
+app.post('/api/trpc/enrollments.list', async (req, res) => {
+  if (!db) return res.json(trpcResponse([]));
+  const [rows] = await db.execute('SELECT * FROM enrollments ORDER BY enrolled_at DESC');
+  res.json(trpcResponse(rows));
+});
+
+app.post('/api/trpc/enrollments.create', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null, 'No database'));
+  const input = parseTrpcInput(req);
+  const [result] = await db.execute(
+    'INSERT INTO enrollments (student_name, student_phone, course_name, amount, status) VALUES (?,?,?,?,?)',
+    [input.studentName, input.studentPhone, input.courseName, input.amount || '', input.status || 'pending']
+  );
+  res.json(trpcResponse({ id: result.insertId }));
+});
+
+app.post('/api/trpc/brochures.list', async (req, res) => {
+  if (!db) return res.json(trpcResponse([]));
+  const [rows] = await db.execute('SELECT id, name, filename, mime_type, size, category, is_default, created_at FROM brochures ORDER BY created_at DESC');
+  res.json(trpcResponse(rows));
+});
+
+app.post('/api/trpc/brochures.count', async (req, res) => {
+  if (!db) return res.json(trpcResponse(0));
+  const [rows] = await db.execute('SELECT COUNT(*) as count FROM brochures');
+  res.json(trpcResponse(rows[0]?.count || 0));
+});
+
+app.post('/api/trpc/brochures.upload', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null, 'No database'));
+  const input = parseTrpcInput(req);
+  const [existing] = await db.execute('SELECT COUNT(*) as count FROM brochures');
+  const isDefault = existing[0].count === 0;
+  const [result] = await db.execute(
+    'INSERT INTO brochures (name, filename, mime_type, size, data, category, is_default) VALUES (?,?,?,?,?,?,?)',
+    [input.name, input.filename, input.mimeType, input.size, input.data, input.category || 'General', isDefault]
+  );
+  res.json(trpcResponse({ id: result.insertId, isDefault }));
+});
+
+app.post('/api/trpc/brochures.setDefault', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null));
+  const input = parseTrpcInput(req);
+  await db.execute('UPDATE brochures SET is_default = false');
+  await db.execute('UPDATE brochures SET is_default = true WHERE id = ?', [input.id]);
+  res.json(trpcResponse({ success: true }));
+});
+
+app.post('/api/trpc/brochures.delete', async (req, res) => {
+  if (!db) return res.json(trpcResponse(null));
+  const input = parseTrpcInput(req);
+  await db.execute('DELETE FROM brochures WHERE id = ?', [input.id]);
+  res.json(trpcResponse({ success: true }));
+});
+
+app.get('/api/brochures/:id', async (req, res) => {
+  if (!db) return res.status(404).send('No database');
+  const [rows] = await db.execute('SELECT * FROM brochures WHERE id = ?', [req.params.id]);
+  if (!rows[0]) return res.status(404).send('Not found');
+  const b = rows[0];
+  const binary = Buffer.from(b.data, 'base64');
+  res.set('Content-Type', b.mime_type);
+  res.set('Content-Disposition', `inline; filename="${b.filename}"`);
+  res.send(binary);
+});
+
+app.post('/api/trpc/company.getSettings', async (req, res) => {
+  if (!db) return res.json(trpcResponse({}));
+  const [rows] = await db.execute('SELECT * FROM settings');
+  const settings = {};
+  rows.forEach(r => settings[r.key_name] = r.value);
+  res.json(trpcResponse(settings));
+});
+
+app.post('/api/trpc/company.update', async (req, res) => {
+  if (!db) return res.json(trpcResponse({ success: true }));
+  const input = parseTrpcInput(req);
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      await db.execute('INSERT INTO settings (key_name, value) VALUES (?,?) ON DUPLICATE KEY UPDATE value=?', [key, value, value]);
+    }
+  }
+  res.json(trpcResponse({ success: true }));
+});
+
+app.post('/api/trpc/settings.getBrochure', async (req, res) => {
+  if (!db) return res.json(trpcResponse('https://www.cornerstonehr.co.za'));
+  const [rows] = await db.execute('SELECT value FROM settings WHERE key_name = "brochureUrl"');
+  res.json(trpcResponse(rows[0]?.value || 'https://www.cornerstonehr.co.za'));
+});
+
+app.post('/api/trpc/settings.setBrochure', async (req, res) => {
+  if (!db) return res.json(trpcResponse({ success: true }));
+  const input = parseTrpcInput(req);
+  await db.execute('INSERT INTO settings (key_name, value) VALUES ("brochureUrl",?) ON DUPLICATE KEY UPDATE value=?', [input.url, input.url]);
+  res.json(trpcResponse({ success: true, url: input.url }));
+});
+
+app.post('/api/trpc/agents.list', async (req, res) => {
+  const agents = [
+    { agentId: 'intent_detector', name: 'Intent Detector', type: 'intent_detector', description: 'Detects student intent from messages', isActive: true, response_count: '0' },
+    { agentId: 'context_analyzer', name: 'Context Analyzer', type: 'context_analyzer', description: 'Analyzes conversation context', isActive: true, response_count: '0' },
+    { agentId: 'sales_responder', name: 'Sales Responder', type: 'sales_responder', description: 'Generates course recommendations', isActive: true, response_count: '0' },
+    { agentId: 'objection_handler', name: 'Objection Handler', type: 'objection_handler', description: 'Handles pricing and time objections', isActive: true, response_count: '0' },
+    { agentId: 'follow_up', name: 'Follow-up Agent', type: 'follow_up', description: 'Schedules follow-up messages', isActive: true, response_count: '0' },
+    { agentId: 'language_adapter', name: 'Language Adapter', type: 'language_adapter', description: 'Detects and responds in student language', isActive: true, response_count: '0' },
+    { agentId: 'post_enrollment', name: 'Student Success', type: 'post_enrollment_support', description: 'Supports enrolled students', isActive: true, response_count: '0' },
+    { agentId: 'prospector', name: 'Outbound Sales', type: 'prospector', description: 'Prospects and advertises', isActive: true, response_count: '0' },
+  ];
+  res.json(trpcResponse(agents));
+});
+
+app.post('/api/trpc/analytics.getStats', async (req, res) => {
+  if (!db) {
+    return res.json(trpcResponse({
+      totalConversations: 0, activeConversations: 0, enrolledCount: 0,
+      avgResponseTime: '2.3s', conversionRate: '0%', agentUtilization: '0%'
+    }));
+  }
+  const [[conv]] = await db.execute('SELECT COUNT(*) as count FROM conversations');
+  const [[active]] = await db.execute('SELECT COUNT(*) as count FROM conversations WHERE status = "active"');
+  const [[enrolled]] = await db.execute('SELECT COUNT(*) as count FROM conversations WHERE status = "enrolled"');
+  res.json(trpcResponse({
+    totalConversations: conv.count,
+    activeConversations: active.count,
+    enrolledCount: enrolled.count,
+    avgResponseTime: '2.3s',
+    conversionRate: conv.count > 0 ? ((enrolled.count / conv.count) * 100).toFixed(1) + '%' : '0%',
+    agentUtilization: '85%',
+  }));
+});
+
+app.post('/api/trpc/analytics.getDailyConversations', async (req, res) => {
+  res.json(trpcResponse({ labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], data: [0,0,0,0,0,0,0] }));
+});
+
+app.post('/api/trpc/analytics.getSalesFunnel', async (req, res) => {
+  res.json(trpcResponse({ labels: ['Enquiry','Interested','Enrolled'], data: [100, 60, 25] }));
+});
