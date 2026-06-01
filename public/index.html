@@ -152,3 +152,64 @@
   </script>
 </body>
 </html>
+
+// WHATSAPP WEBHOOK
+app.get('/api/webhook/whatsapp', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
+    console.log('Webhook verified!');
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
+});
+
+app.post('/api/webhook/whatsapp', async (req, res) => {
+  res.sendStatus(200);
+  try {
+    const messages = req.body?.entry?.[0]?.changes?.[0]?.value?.messages;
+    if (!messages || messages.length === 0) return;
+    
+    const msg = messages[0];
+    const from = msg.from;
+    const text = msg.text?.body || '';
+    const name = msg.contacts?.[0]?.profile?.name || 'Student';
+    
+    console.log(`[${new Date().toISOString()}] Message from ${from} (${name}): ${text}`);
+    
+    const { response, intent, lang } = await generateAIResponse(text);
+    await saveMessage(from, name, text, response, intent, lang);
+    await sendWhatsAppMessage(from, response);
+    
+    console.log(`[${new Date().toISOString()}] AI replied to ${from}: ${response.substring(0, 80)}...`);
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+  }
+});
+
+// STATIC FILES (React frontend)
+const publicPath = path.join(__dirname, 'dist', 'public');
+app.use(express.static(publicPath));
+
+// SPA fallback
+app.get('*', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+// START SERVER
+const PORT = process.env.PORT || 3000;
+
+initDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log('='.repeat(60));
+    console.log('  Cornerstone Supreme AI - FULL BACKEND');
+    console.log('  Port:', PORT);
+    console.log('  Phone:', BUSINESS_PHONE);
+    console.log('  Webhook: /api/webhook/whatsapp');
+    console.log('  Courses: 8 courses loaded');
+    console.log('  AI Agents: 8 agents ready');
+    console.log('='.repeat(60));
+  });
+});
