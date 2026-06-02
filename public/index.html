@@ -42,6 +42,7 @@
     <a href="#" class="nav-item active">Dashboard</a>
     <a href="#" class="nav-item">Live Conversations</a>
     <a href="#" class="nav-item">Students</a>
+    <a href="#" class="nav-item">Enrollments</a>
     <a href="#" class="nav-item">Settings</a>
   </div>
 
@@ -58,34 +59,28 @@
         <h2>WhatsApp Business API</h2>
         <span class="status-green"><span class="status-dot"></span> Connected</span>
       </div>
-      
       <div id="successMsg" class="success-msg">Settings saved!</div>
-
       <div class="input-group">
         <label>360dialog API Key</label>
         <input type="password" id="apiKey" placeholder="Paste your API key...">
       </div>
-      
       <div class="input-group">
         <label>Phone Number ID</label>
         <input type="text" id="phoneId" placeholder="e.g. 3946307052068577">
       </div>
-      
       <div class="input-group">
         <label>Business Phone</label>
         <input type="text" id="bizPhone" value="0718374853">
       </div>
-      
       <div class="input-group">
         <label>Webhook Verify Token</label>
         <input type="text" id="webhookToken" value="cornerstone2024">
       </div>
-      
       <button class="btn" onclick="saveSettings()">Save Settings</button>
     </div>
 
     <div class="card">
-      <h2>Webhook URL (copy this to 360dialog)</h2>
+      <h2>Webhook URL (copy to 360dialog)</h2>
       <div class="input-group" style="margin-top:12px;">
         <input type="text" id="webhookUrl" value="YOUR_RENDER_URL/api/webhook/whatsapp" readonly onclick="this.select()">
       </div>
@@ -95,9 +90,7 @@
     <div class="card">
       <h2>Recent Conversations</h2>
       <table style="margin-top:16px;">
-        <thead>
-          <tr><th>Phone</th><th>Last Message</th><th>Status</th><th>Time</th></tr>
-        </thead>
+        <thead><tr><th>Phone</th><th>Last Message</th><th>Status</th><th>Time</th></tr></thead>
         <tbody id="convTable">
           <tr><td colspan="4" style="color:#A1A1AA;">No conversations yet. Send a WhatsApp to 0718374853!</td></tr>
         </tbody>
@@ -117,7 +110,6 @@
       document.getElementById('successMsg').classList.add('show');
       setTimeout(() => document.getElementById('successMsg').classList.remove('show'), 3000);
     }
-    
     const saved = localStorage.getItem('cs_settings');
     if (saved) {
       const s = JSON.parse(saved);
@@ -126,9 +118,7 @@
       document.getElementById('bizPhone').value = s.bizPhone || '0718374853';
       document.getElementById('webhookToken').value = s.webhookToken || 'cornerstone2024';
     }
-    
     document.getElementById('webhookUrl').value = window.location.origin + '/api/webhook/whatsapp';
-    
     async function loadConversations() {
       try {
         const res = await fetch('/api/conversations');
@@ -152,64 +142,3 @@
   </script>
 </body>
 </html>
-
-// WHATSAPP WEBHOOK
-app.get('/api/webhook/whatsapp', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-  if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
-    console.log('Webhook verified!');
-    res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
-  }
-});
-
-app.post('/api/webhook/whatsapp', async (req, res) => {
-  res.sendStatus(200);
-  try {
-    const messages = req.body?.entry?.[0]?.changes?.[0]?.value?.messages;
-    if (!messages || messages.length === 0) return;
-    
-    const msg = messages[0];
-    const from = msg.from;
-    const text = msg.text?.body || '';
-    const name = msg.contacts?.[0]?.profile?.name || 'Student';
-    
-    console.log(`[${new Date().toISOString()}] Message from ${from} (${name}): ${text}`);
-    
-    const { response, intent, lang } = await generateAIResponse(text);
-    await saveMessage(from, name, text, response, intent, lang);
-    await sendWhatsAppMessage(from, response);
-    
-    console.log(`[${new Date().toISOString()}] AI replied to ${from}: ${response.substring(0, 80)}...`);
-  } catch (err) {
-    console.error('Webhook error:', err.message);
-  }
-});
-
-// STATIC FILES (React frontend)
-const publicPath = path.join(__dirname,'public');
-app.use(express.static(publicPath));
-
-// SPA fallback
-app.get('*', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html')); 
-});
-
-// START SERVER
-const PORT = process.env.PORT || 3000;
-
-initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log('='.repeat(60));
-    console.log('  Cornerstone Supreme AI - FULL BACKEND');
-    console.log('  Port:', PORT);
-    console.log('  Phone:', BUSINESS_PHONE);
-    console.log('  Webhook: /api/webhook/whatsapp');
-    console.log('  Courses: 8 courses loaded');
-    console.log('  AI Agents: 8 agents ready');
-    console.log('='.repeat(60));
-  });
-});
